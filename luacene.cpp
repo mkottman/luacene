@@ -133,6 +133,7 @@ static int iw_flush(lua_State *L) {
 static int iw_gc(lua_State *L) {
 	IndexWriter *iw = get_IndexWriter(L, 1);
 	Analyzer *an = iw->getAnalyzer();
+	iw->close();
 	_CLDELETE(an);
 	_CLDELETE(iw);
 	return 0;
@@ -156,8 +157,8 @@ static int hits_index(lua_State *L) {
 	int type = lua_type(L, 2);
 	if (type == LUA_TNUMBER) {
 		int n = lua_tointeger(L, 2);
-		Document doc = h->doc(n);
-		return push_Document(L, &doc);
+		Document * doc = &h->doc(n);
+		return push_Document(L, doc);
 	} else if (type == LUA_TSTRING) {
 		const char * opts[] = {"length"};
 		int idx = luaL_checkoption(L, 2, NULL, opts);
