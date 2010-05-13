@@ -94,10 +94,74 @@ static Document * get_Document(lua_State *L, int idx) {
 	Document * doc = _CLNEW Document();
 	lua_pushnil(L);
 	while (lua_next(L, idx) != 0) {
+		int tname = lua_type(L, -2);
+		if (tname != LUA_TSTRING) {
+			luaL_error(L, "Unexpected field key type: %s", luaL_typename(L, -2));
+			return NULL;
+		}
+		const char * lname = luaL_checkstring(L, -2);
 		TCHAR * name = fromUtf8(lua_tostring(L, -2));
-		TCHAR * value = fromUtf8(lua_tostring(L, -1));
-		Field * f = _CLNEW Field(name, value, Field::STORE_YES | Field::INDEX_TOKENIZED);
-		doc->add(*f);
+
+		// value can be string or table
+		int tvalue = lua_type(L, -1);
+		if (tvalue == LUA_TSTRING) {
+			// simple case - string: store tokenized in index (reasonable default)
+			TCHAR * value = fromUtf8(lua_tostring(L, -1));
+			Field * f = _CLNEW Field(name, value, Field::STORE_YES | Field::INDEX_TOKENIZED);
+			doc->add(*f);
+			free(name);
+			free(value);
+		} else if (tvalue == LUA_TTABLE) {
+			// advanced case - table: { value, store, index, termvector }
+			int tab = lua_gettop(L);
+
+			// get value
+			lua_rawgeti(L, tab, 1);
+			const char * lvalue = lua_tostring(L, -1);
+			if (!lvalue) {
+				free(name);
+				luaL_error(L, "Unexpected field %s value type: %s", luaL_typename(L, -1));
+				return NULL;
+			}
+
+			int config = 0;
+
+			// get store option: "yes", "no", "compress"
+			Field::Store cstores[] = { Field::STORE_YES, Field::STORE_NO, Field::STORE_COMPRESS };
+			const char * stores[] = { "yes", "no", "compress" };
+			lua_rawgeti(L, tab, 2);
+			int istore = luaL_checkoption(L, -1, NULL, stores);
+			config = config | cstores[istore];
+
+			// get index option: "no", "tokenized", "untokenized", "nonorms"
+			Field::Index cindex[] = { Field::INDEX_NO, Field::INDEX_TOKENIZED,
+				Field::INDEX_UNTOKENIZED, Field::INDEX_NONORMS };
+			const char * index[] = { "no", "tokenized", "untokenized", "nonorms" };
+			lua_rawgeti(L, tab, 3);
+			int iindex = luaL_checkoption(L, -1, NULL, index);
+			config = config | cindex[iindex];
+
+			// get termvector option: "no", "yes", "positions", "offsets", "positions+offsets"
+			Field::TermVector ctv[] = { Field::TERMVECTOR_NO, Field::TERMVECTOR_YES,
+				Field::TERMVECTOR_WITH_POSITIONS, Field::TERMVECTOR_WITH_OFFSETS,
+				Field::TERMVECTOR_WITH_POSITIONS_OFFSETS };
+			const char * tv[] = { "no", "yes", "positions", "offsets", "positions+offsets" };
+			lua_rawgeti(L, tab, 4);
+			int itv = luaL_checkoption(L, -1, NULL, tv);
+			config = config | ctv[itv];
+
+			TCHAR * value = fromUtf8(lvalue);
+			Field * f = _CLNEW Field(name, value, config);
+			doc->add(*f);
+			free(name);
+			free(value);
+
+			lua_pop(L, 4);
+		} else {
+			free(name);
+			luaL_error(L, "Unexpected field %s value type: %s", lname, luaL_typename(L, -1));
+			return 0;
+		}
 		lua_pop(L, 1);
 	}
 	return doc;

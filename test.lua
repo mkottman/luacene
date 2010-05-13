@@ -10,6 +10,16 @@ for i=1,10 do
 	writer:addDocument {
 		text = 'Hello world',
 		uni = 'ľščťžýáíéúäňô',
+		opt = {
+			-- value
+			'this is a sample long long long long text long text termvector test',
+			-- store option: "yes", "no", "compress"
+			'yes',
+			-- index option: "no", "tokenized", "untokenized", "nonorms"
+			'tokenized',
+			-- termvector option: "no", "yes", "positions", "offsets", "positions+offsets"
+			'positions+offsets'
+		},
 		num = tostring(i)
 	}
 end
@@ -29,5 +39,5 @@ print('ok', hits, hits.length)
 local n = hits.length
 for i=0,n-1 do
 	local d = hits[i]
-	print(d)
+	print(d, d.text, d.num, d.uni, d.opt)
 end
