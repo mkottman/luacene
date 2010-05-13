@@ -71,6 +71,19 @@ static type * get_##type(lua_State *L, int idx) {            \
 	return *x;                                               \
 }
 
+static int handle_error(lua_State *L, CLuceneError &e) {
+	lua_pushnil(L);
+	if (e.number() == 0) {
+		lua_pushstring(L, "Mysterious error");
+	} else {
+		const TCHAR * twhat = e.twhat();
+		char * what = toUtf8(twhat);
+		lua_pushstring(L, what);
+		free(what);
+	}
+	return 2;
+}
+
 /*********** Document ************/
 
 static int push_Document(lua_State *L, Document *d) {
@@ -183,15 +196,20 @@ static int iw_add(lua_State *L) {
 
 static int iw_optimize(lua_State *L) {
 	IndexWriter *iw = get_IndexWriter(L, 1);
-	iw->optimize();
-	lua_pushboolean(L, 1);
-	return 1;
+	try {
+		iw->optimize();
+		lua_pushboolean(L, 1);
+		return 1;
+	} catch (CLuceneError &e) { return handle_error(L, e); }
 }
 
 static int iw_flush(lua_State *L) {
 	IndexWriter *iw = get_IndexWriter(L, 1);
-	iw->flush();
-	return 0;
+	try {
+		iw->flush();
+		lua_pushboolean(L, 1);
+		return 1;
+	} catch (CLuceneError &e) { return handle_error(L, e); }
 }
 
 static int iw_gc(lua_State *L) {
@@ -292,13 +310,7 @@ static int l_searcher(lua_State *L) {
 		IndexSearcher *searcher = _CLNEW IndexSearcher(path);
 		push_IndexSearcher(L, searcher);
 		return 1;
-	} catch (CLuceneError e) {
-		lua_pushnil(L);
-		char * what = toUtf8(e.twhat());
-		lua_pushstring(L, what);
-		free(what);
-		return 2;
-	}
+	} catch (CLuceneError &e) { return handle_error(L, e); }
 }
 
 static int l_writer(lua_State *L) {
@@ -308,13 +320,7 @@ static int l_writer(lua_State *L) {
 		IndexWriter *writer = _CLNEW IndexWriter(path, analyzer, true);
 		push_IndexWriter(L, writer);
 		return 1;
-	} catch (CLuceneError e) {
-		lua_pushnil(L);
-		char * what = toUtf8(e.twhat());
-		lua_pushstring(L, what);
-		free(what);
-		return 2;
-	}
+	} catch (CLuceneError &e) { return handle_error(L, e); }
 }
 
 
