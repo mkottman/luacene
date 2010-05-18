@@ -2,8 +2,10 @@ require 'luacene'
 
 local path = 'index'
 
+local stopwords = {'test', 'a'}
+
 print('Creating writer')
-local writer = assert(luacene.writer(path))
+local writer = assert(luacene.writer(path, stopwords))
 print('ok', writer)
 
 for i=1,10 do
@@ -26,9 +28,10 @@ end
 
 writer:optimize()
 writer:flush()
+writer:close()
 
 print('Creating searcher')
-local searcher = assert(luacene.searcher(path))
+local searcher = assert(luacene.searcher(path, stopwords))
 print('ok', searcher)
 
 print('Searching')
@@ -41,3 +44,8 @@ for i=1,n do
 	local d = hits[i]
 	print(d, d.text, d.num, d.uni, d.opt)
 end
+
+print('Testing stopwords')
+local hits2 = searcher:search('opt:a')
+assert(hits2.length == 0, "found stopword when it shouldn't")
+print('ok', hits2.length)

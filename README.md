@@ -27,10 +27,12 @@ Library is loaded using require:
 
 The luacene table has two functions:
 
-- luacene.writer(path) - returns an IndexWriter for the specified path.
-- luacene.searcher(path) - returns an IndexSearcher for the specified path.
+- luacene.writer(path [, stopwords]) - returns an IndexWriter for the specified path.
+- luacene.searcher(path [, stopwords]) - returns an IndexSearcher for the specified path.
 
-`RAMDirectory` is not supported (yet). Both use the `StandardAnalyzer` tokenizer.
+`RAMDirectory` is not supported (yet). Both use the `StandardAnalyzer` tokenizer. `stopwords` is
+an optional Lua table (array) containing strings, which are used as stopwords for the analyzer.
+If no table is provided, the default set of English stopwords is used.
 
 IndexWriter has these functions:
 

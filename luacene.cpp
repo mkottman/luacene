@@ -301,6 +301,36 @@ static luaL_Reg Hits_methods[] = {
 	{NULL, NULL}
 };
 
+/*********** Analyzer ************/
+
+Analyzer * get_Analyzer(lua_State *L, int idx) {
+	Analyzer * analyzer = NULL;
+	if (lua_isnoneornil(L, idx)) {
+		// default english stopwords
+		analyzer = _CLNEW StandardAnalyzer();
+	} else {
+		// table with stopwords
+		luaL_checktype(L, idx, LUA_TTABLE);
+		size_t len = lua_objlen(L, idx);
+		TCHAR ** stopwords = (TCHAR**) malloc((len + 1) * sizeof(TCHAR*));
+
+		for (int i=0; i<len; i++) {
+			lua_rawgeti(L, idx, i+1);
+			const char * str = lua_tostring(L, -1);
+			stopwords[i] = fromUtf8(str);
+			lua_pop(L, 1);
+		}
+		stopwords[len] = NULL;
+
+		analyzer = _CLNEW StandardAnalyzer((const TCHAR**)stopwords);
+
+		for (int i=0; i<len; i++)
+			free(stopwords[i]);
+		free(stopwords);
+	}
+	return analyzer;
+}
+
 /*********** IndexSearcher ************/
 
 LUADEF(IndexSearcher)
@@ -309,14 +339,14 @@ static int is_search(lua_State *L) {
 	IndexSearcher* s = get_IndexSearcher(L, 1);
 	size_t queryLen;
 	const char * query = luaL_checklstring(L, 2, &queryLen);
-
 	TCHAR * tquery = fromUtf8(query);
-	StandardAnalyzer analyzer;
 
-	Query* q = QueryParser::parse(tquery, _T("contents"), &analyzer);
+	Analyzer *analyzer = get_Analyzer(L, 3);
+	Query* q = QueryParser::parse(tquery, _T("contents"), analyzer);
 	Hits* h = s->search(q);
 
 	_CLDELETE(q);
+	_CLDELETE(analyzer);
 	free(tquery);
 
 	push_Hits(L, h);
@@ -332,7 +362,6 @@ static int is_gc(lua_State *L) {
 
 static luaL_Reg IndexSearcher_methods[] = {
 	{"search", is_search},
-	//{"__tostring", is_tostring},
 	{"__gc", is_gc},
 	{NULL, NULL}
 };
@@ -351,7 +380,7 @@ static int l_searcher(lua_State *L) {
 static int l_writer(lua_State *L) {
 	const char * path = luaL_checkstring(L, 1);
 	try {
-		StandardAnalyzer * analyzer = _CLNEW StandardAnalyzer();
+		Analyzer * analyzer = get_Analyzer(L, 2);
 		IndexWriter *writer = _CLNEW IndexWriter(path, analyzer, true);
 		push_IndexWriter(L, writer);
 		return 1;
