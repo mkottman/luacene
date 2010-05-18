@@ -69,10 +69,13 @@ static void push_##type(lua_State *L, type *v) {             \
 static type * get_##type(lua_State *L, int idx) {            \
 	type ** x = (type **) luaL_checkudata(L, idx, MT #type); \
 	return *x;                                               \
+}                                                            \
+static void clear_##type(lua_State *L, int idx) {            \
+	type ** x = (type **) luaL_checkudata(L, idx, MT #type); \
+	*x = NULL;                                               \
 }
 
-static int handle_error(lua_State *L, CLuceneError &e) {
-	lua_pushnil(L);
+static void push_error(lua_State *L, CLuceneError &e) {
 	if (e.number() == 0) {
 		lua_pushstring(L, "Mysterious error");
 	} else {
@@ -81,6 +84,11 @@ static int handle_error(lua_State *L, CLuceneError &e) {
 		lua_pushstring(L, what);
 		free(what);
 	}
+}
+
+static int handle_error(lua_State *L, CLuceneError &e) {
+	lua_pushnil(L);
+	push_error(L, e);
 	return 2;
 }
 
@@ -212,12 +220,28 @@ static int iw_flush(lua_State *L) {
 	} catch (CLuceneError &e) { return handle_error(L, e); }
 }
 
+static int iw_close(lua_State *L) {
+	IndexWriter *iw = get_IndexWriter(L, 1);
+	try {
+		Analyzer *an = iw->getAnalyzer();
+		iw->close();
+		_CLDELETE(an);
+		_CLDELETE(iw);
+
+		clear_IndexWriter(L, 1);
+		lua_pushboolean(L, 1);
+		return 1;
+	} catch (CLuceneError &e) { return handle_error(L, e); }
+}
+
 static int iw_gc(lua_State *L) {
 	IndexWriter *iw = get_IndexWriter(L, 1);
-	Analyzer *an = iw->getAnalyzer();
-	iw->close();
-	_CLDELETE(an);
-	_CLDELETE(iw);
+	if (iw) {
+		Analyzer *an = iw->getAnalyzer();
+		iw->close();
+		_CLDELETE(an);
+		_CLDELETE(iw);
+	}
 	return 0;
 }
 
@@ -226,6 +250,7 @@ static luaL_Reg IndexWriter_methods[] = {
 	{"addDocument", iw_add},
 	{"optimize", iw_optimize},
 	{"flush", iw_flush},
+	{"close", iw_close},
 	{"__gc", iw_gc},
 	{NULL, NULL}
 };
