@@ -68,8 +68,9 @@ straight-forward.
 
 - Hits.lenght - the number of search results
 
-- Hits[i] - retrieves the `i`-th document. `i` is zero based. Documents are returned as
-Lua tables, with keys being `Field` names and values being their content.
+- Hits[i] - retrieves the `i`-th document. `i` is one based, like tables in Lua (1 &lt;= `i`
+&lt;= Hits.lenght). Documents are returned as Lua tables, with keys being `Field` names and
+values being their string content, which is encoded using current locale.
 
 License
 -------

@@ -37,7 +37,7 @@ assert(hits.length, "hits does not respond to 'length'")
 print('ok', hits, hits.length)
 
 local n = hits.length
-for i=0,n-1 do
+for i=1,n do
 	local d = hits[i]
 	print(d, d.text, d.num, d.uni, d.opt)
 end

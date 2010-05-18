@@ -234,14 +234,24 @@ static luaL_Reg IndexWriter_methods[] = {
 
 LUADEF(Hits)
 
+// custom Hits __index metamethod
 static int hits_index(lua_State *L) {
 	Hits *h = get_Hits(L, 1);
 	int type = lua_type(L, 2);
 	if (type == LUA_TNUMBER) {
+		// numeric key - retrieve document, 1-based
 		int n = lua_tointeger(L, 2);
-		Document * doc = &h->doc(n);
-		return push_Document(L, doc);
+		try {
+			Document * doc = &h->doc(n - 1);
+			return push_Document(L, doc);
+		} catch (CLuceneError &e) {
+			lua_pushliteral(L, "Invalid key: ");
+			lua_pushvalue(L, 2);
+			lua_concat(L, 2);
+			lua_error(L);
+		}
 	} else if (type == LUA_TSTRING) {
+		// string key - i.e. hits.length
 		const char * opts[] = {"length"};
 		int idx = luaL_checkoption(L, 2, NULL, opts);
 		if (idx == 0) {
